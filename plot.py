@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 
 # Load your data
-df = pd.read_csv('prcsd_with_date.csv', sep=',')
+df = pd.read_csv('final_data_with_apostrophe.csv', sep=',')
 
 # Create an undirected graph
 G = nx.Graph()
@@ -17,8 +17,10 @@ for _, row in df.iterrows():
     label = row['label']  # Extract label (fraud or normal)
     
     # Extract words after the 2nd column (ignoring 'label' and 'year')
-    words = [str(word).strip() for word in row[2:].dropna() if isinstance(word, str) and len(word.strip()) > 3]
-
+    # print(row['message'])
+    words = [str(word).strip() for word in row["message"].split(',') if isinstance(word, str) and len(word.strip()) > 3]
+    # if _ < 2:
+    #     print(words)
     # Create edges between all pairs of words in this row
     for u, v in combinations(words, 2):
         if G.has_edge(u, v):
@@ -42,7 +44,9 @@ nx.draw_networkx_labels(G, pos, font_size=8, font_family='sans-serif')
 
 plt.title("Word Co-occurrence Network (Fraud = Red, Normal = Blue)")
 plt.axis('off')
-plt.show()
+plt.tight_layout()
+plt.savefig("word_network.png", dpi=300)
+
 
 # Save the graph for further analysis
 nx.write_gexf(G, "word_network.gexf")
