@@ -15,6 +15,8 @@ from collections import Counter, defaultdict
 import itertools
 import re
 from datetime import datetime
+# Add these imports at the top
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Load the data
 df = pd.read_csv('../data/6_sorted_quoted_1000.csv')
@@ -454,7 +456,7 @@ def create_top_words_table(year, label_type="all"):
     data_table = DataTable(
         source=source, 
         columns=columns, 
-        width=300, 
+        width=450, 
         height=400,
         index_position=None,
         sortable=True,
@@ -603,7 +605,7 @@ def create_metrics_tab():
     
     return TabPanel(child=metrics_panel, title="Network Metrics")
 
-def create_words_tab():
+def create_word_analysis_tab():
     # Initial words table
     initial_words_table = create_top_words_table(available_years[0], "all")
     
@@ -626,58 +628,221 @@ def create_words_tab():
         width=300
     )
     
-    # Container for the table
+    # Container for the table and metrics
     words_table_container = column(initial_words_table)
     
-    # Words information
-    words_info_div = Div(
-        text="<div class='section-title'>Top Words Information</div>"
-             "<p>This table shows the most frequent words appearing in messages for the "
-             "selected year and message type. Compare top words between fraud and normal "
-             "messages to identify distinctive vocabulary patterns.</p>",
+    # Calculate initial comparative metrics
+    initial_distinctiveness = calculate_word_distinctiveness(available_years[0])
+    initial_bigrams = calculate_top_bigrams(available_years[0], "all")
+    
+    # Create data tables for additional metrics
+    distinctiveness_table = create_distinctiveness_table(initial_distinctiveness)
+    bigram_table = create_bigram_table(initial_bigrams)
+    
+    # Sections with descriptions
+    frequency_section = Div(
+        text="<div class='section-title'>Word Frequency</div>"
+             "<p>Most common words in the selected messages, showing raw frequency counts.</p>",
         width=300
     )
     
-    # Function to update the words table
-    def update_words_table(attr, old, new):
+    distinctiveness_section = Div(
+        text="<div class='section-title'>Word Distinctiveness</div>"
+             "<p>Words that most distinguish fraud from normal messages. Higher scores indicate words more strongly associated with fraud messages.</p>",
+        width=300
+    )
+    
+
+    bigram_section = Div(
+        text="<div class='section-title'>Common Word Pairs</div>"
+             "<p>Most frequently co-occurring word pairs (bigrams) in the selected messages.</p>",
+        width=300
+    )
+    
+    # Function to update all tables
+    def update_word_analysis(attr, old, new):
         selected_year = words_year_selector.value
         message_type = ["all", "fraud", "normal"][words_type_selector.active]
+        
+        # Update frequency table
         words_table_container.children[0] = create_top_words_table(selected_year, message_type)
+        
+        # Update distinctiveness table (doesn't depend on message_type since it's a comparison)
+        distinctiveness_container.children[0] = create_distinctiveness_table(
+            calculate_word_distinctiveness(selected_year)
+        )
+        
+    
+        # Update bigram table
+        bigram_container.children[0] = create_bigram_table(
+            calculate_top_bigrams(selected_year, message_type)
+        )
     
     # Attach callbacks
-    words_year_selector.on_change('value', update_words_table)
-    words_type_selector.on_change('active', update_words_table)
+    words_year_selector.on_change('value', update_word_analysis)
+    words_type_selector.on_change('active', update_word_analysis)
     
-    # Create layout for words tab
+    # Create containers for each metric table
+    frequency_container = column(words_table_container)
+    distinctiveness_container = column(distinctiveness_table)
+    bigram_container = column(bigram_table)
+    
+    # Create layout for word analysis tab
     controls = column(
-        Div(text="<div class='section-title'>Word Frequency Controls</div>"),
+        Div(text="<div class='section-title'>Word Analysis Controls</div>"),
         words_year_selector,
         words_type_label,
         words_type_selector,
-        words_info_div,
         width=300,
         css_classes=['card']
     )
     
-    # Title for table
-    table_title = Div(
-        text="<div class='section-title'>Top Words by Frequency</div>",
-        width=300
-    )
-    
-    table_panel = column(
-        table_title,
-        words_table_container,
-        css_classes=['card']
-    )
-    
-    words_panel = row(
+    # Create a grid layout for all the tables
+    tables_grid = gridplot([
+        [column(frequency_section, frequency_container),
+        column(distinctiveness_section, distinctiveness_container),
+        column(bigram_section, bigram_container)]
+    ], sizing_mode="stretch_width")
+        
+    word_analysis_panel = row(
         controls,
-        table_panel,
-        sizing_mode="stretch_width"  # Add this line
+        column(
+            Div(text="<div class='section-title'>Word Analysis Metrics</div>"),
+            tables_grid,
+            sizing_mode="stretch_width"
+        ),
+        sizing_mode="stretch_width"
     )
     
-    return TabPanel(child=words_panel, title="Word Frequency")
+    return TabPanel(child=word_analysis_panel, title="Word Analysis")
+
+
+# Function to calculate word distinctiveness between fraud and normal messages
+def calculate_word_distinctiveness(year):
+    # Get messages for the year
+    fraud_messages = df[(df['year'] == year) & (df['label'] == 'fraud')]
+    normal_messages = df[(df['year'] == year) & (df['label'] == 'normal')]
+    
+    # Extract all tokens
+    fraud_tokens = [token for sublist in fraud_messages['tokens'].tolist() for token in sublist]
+    normal_tokens = [token for sublist in normal_messages['tokens'].tolist() for token in sublist]
+    
+    # Count token frequencies
+    fraud_counts = Counter(fraud_tokens)
+    normal_counts = Counter(normal_tokens)
+    
+    # Calculate total counts
+    total_fraud = sum(fraud_counts.values())
+    total_normal = sum(normal_counts.values())
+    
+    # Calculate distinctiveness scores
+    # (frequency in fraud / total fraud words) / (frequency in normal / total normal words)
+    distinctiveness = {}
+    
+    # Avoid division by zero
+    if total_fraud > 0 and total_normal > 0:
+        all_words = set(fraud_counts.keys()) | set(normal_counts.keys())
+        for word in all_words:
+            # Add smoothing factor of 1 to avoid division by zero
+            fraud_freq = (fraud_counts.get(word, 0) + 1) / (total_fraud + 1)
+            normal_freq = (normal_counts.get(word, 0) + 1) / (total_normal + 1)
+            distinctiveness[word] = fraud_freq / normal_freq
+    
+    # Get top distinctive words (sort by score)
+    top_distinctive = sorted(distinctiveness.items(), key=lambda x: x[1], reverse=True)[:15]
+    return top_distinctive
+
+# Function to create distinctiveness table
+def create_distinctiveness_table(distinctiveness_data):
+    # Prepare data for table
+    table_data = {
+        'rank': list(range(1, len(distinctiveness_data) + 1)),
+        'word': [item[0] for item in distinctiveness_data],
+        'score': [round(item[1], 2) for item in distinctiveness_data]
+    }
+    
+    source = ColumnDataSource(table_data)
+    
+    # Create table columns
+    columns = [
+        TableColumn(field="rank", title="Rank"),
+        TableColumn(field="word", title="Word"),
+        TableColumn(field="score", title="Fraud/Normal Ratio")
+    ]
+    
+    # Create data table
+    data_table = DataTable(
+        source=source, 
+        columns=columns, 
+        width=450, 
+        height=300,
+        index_position=None,
+        sortable=True,
+        reorderable=True
+    )
+    
+    return data_table
+
+
+
+# Function to calculate most common bigrams
+def calculate_top_bigrams(year, label_type="all"):
+    from collections import Counter
+    
+    # Filter data by year and label type
+    if label_type == "fraud":
+        messages = df[(df['year'] == year) & (df['label'] == 'fraud')]
+    elif label_type == "normal":
+        messages = df[(df['year'] == year) & (df['label'] == 'normal')]
+    else:
+        messages = df[df['year'] == year]
+    
+    # Find bigrams in each message
+    all_bigrams = []
+    for token_list in messages['tokens']:
+        # Create bigrams from adjacent words
+        if len(token_list) > 1:
+            message_bigrams = [f"{token_list[i]} {token_list[i+1]}" for i in range(len(token_list)-1)]
+            all_bigrams.extend(message_bigrams)
+    
+    # Count bigram frequencies
+    bigram_counts = Counter(all_bigrams)
+    
+    # Get top bigrams (up to 15)
+    top_bigrams = bigram_counts.most_common(min(15, len(bigram_counts)))
+    
+    return top_bigrams
+
+# Function to create bigram table
+def create_bigram_table(bigram_data):
+    # Prepare data for table
+    table_data = {
+        'rank': list(range(1, len(bigram_data) + 1)),
+        'bigram': [item[0] for item in bigram_data],
+        'frequency': [item[1] for item in bigram_data]
+    }
+    
+    source = ColumnDataSource(table_data)
+    
+    # Create table columns
+    columns = [
+        TableColumn(field="rank", title="Rank"),
+        TableColumn(field="bigram", title="Word Pair"),
+        TableColumn(field="frequency", title="Frequency")
+    ]
+    
+    # Create data table
+    data_table = DataTable(
+        source=source, 
+        columns=columns, 
+        width=450, 
+        height=300,
+        index_position=None,
+        sortable=True,
+        reorderable=True
+    )
+    
+    return data_table
 
 def create_about_tab():
     about_content = Div(
@@ -724,7 +889,8 @@ def create_about_tab():
 # Create tab panels
 network_tab = create_network_tab()
 metrics_tab = create_metrics_tab()
-words_tab = create_words_tab()
+word_analysis_tab = create_word_analysis_tab()
+
 
 # About tab content
 # About tab content (continuing from where the code left off)
@@ -765,7 +931,7 @@ about_text = """
 about_content = Div(text=about_text, width=1000)
 about_tab = TabPanel(child=about_content, title="About")
 # Create tabs layout with all panels
-tabs = Tabs(tabs=[network_tab, metrics_tab, words_tab, about_tab], 
+tabs = Tabs(tabs=[network_tab, metrics_tab, word_analysis_tab, about_tab], 
            sizing_mode="stretch_width")
 
 # Create dashboard header
