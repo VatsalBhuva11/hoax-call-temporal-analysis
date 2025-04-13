@@ -181,9 +181,9 @@ css_styles = """
 """
 
 # Create Header with CSS styling
-main_title = Div(text=f"{css_styles}<div class='dashboard-title'>Temporal Word Network Analysis Dashboard</div>", width=1200)
+main_title = Div(text=f"{css_styles}<div class='dashboard-title' style='font-size: 20px'>Temporal Word Network Analysis Dashboard</div>", width=1200)
 description = Div(
-    text="""<div class='dashboard-description'>This dashboard visualizes the evolution of word networks in fraud and normal messages over time. 
+    text="""<div class='dashboard-description' style='font-size: 17px; margin-bottom: 20px;'>This dashboard visualizes the evolution of word networks in fraud and normal messages over time. 
     Explore how language patterns change and identify key terms used in fraudulent messages.</div>""",
     width=1200
 )
@@ -192,7 +192,7 @@ description = Div(
 def create_network_viz(G, title="Word Co-occurrence Network"):
     # Create a Bokeh plot
     plot = figure(title=title, 
-                  width=800, height=600,  # Increased from 700x500
+                  width=700, height=600,  # Increased from 700x500
                   tools="pan,wheel_zoom,box_zoom,reset,save",
                   active_scroll='wheel_zoom',
                   toolbar_location="right",
@@ -895,35 +895,41 @@ word_analysis_tab = create_word_analysis_tab()
 # About tab content
 # About tab content (continuing from where the code left off)
 about_text = """
-<div class='card'>
-    <div class='section-title'>About This Dashboard</div>
-    <p>This dashboard visualizes word co-occurrence networks from a hoax-call dataset to help identify patterns 
-    in fraudulent and normal messages. By analyzing how language usage evolves over time, we can better 
-    understand the characteristics of fraudulent communication.</p>
-    
-    <div class='section-title'>How to Use This Dashboard</div>
-    <p>The dashboard is organized into three main tabs:</p>
-    <ol>
-        <li><strong>Network Visualization:</strong> Interactive word network graphs showing connections between frequently co-occurring words</li>
-        <li><strong>Network Metrics:</strong> Time series charts tracking changes in network properties over time</li>
-        <li><strong>Word Frequency:</strong> Tables showing the most common words for different message types and years</li>
-    </ol>
-    
-    <div class='section-title'>Data Description</div>
-    <p>The dataset contains messages classified as either fraudulent (hoax calls) or normal. Each message has been 
-    processed to extract meaningful words and analyze their relationships.</p>
-    
-    <div class='section-title'>Analysis Methodology</div>
-    <p>The dashboard uses network analysis techniques to model relationships between words in messages. Words that 
-    frequently appear together in messages are connected in the network. This approach helps identify distinctive 
-    language patterns that may characterize fraudulent communication.</p>
-    
-    <div class='section-title'>Implementation Details</div>
-    <p>Built with Python using:</p>
+<div class='card' style='font-size: 15px'>
+    <div class='section-title'><h2>About This Dashboard</h2></div>
+    <p>
+        This dashboard visualizes word co-occurrence networks extracted from a hoax call dataset.
+        It helps identify patterns in fraudulent and normal messages. By analyzing how language
+        evolves over time, we uncover communication structures linked to fraud.
+    </p>
+
+    <div class='section-title'><h2>How to Use This Dashboard</h2></div>
+    <p>The dashboard is divided into the following interactive sections:</p>
     <ul>
-        <li>NetworkX and DyNetX for network analysis</li>
-        <li>Pandas for data processing</li>
-        <li>Bokeh for interactive visualization</li>
+        <li><strong>Network Visualization:</strong> Interactive word network graphs showing co-occurrences by year and message type.</li>
+        <li><strong>Network Metrics:</strong> Time series charts tracking changes in structural graph properties.</li>
+        <li><strong>Word Analysis:</strong> Tables showing most frequent, distinctive, and central words.</li>
+    </ul>
+
+    <div class='section-title'><h2>Data Description</h2></div>
+    <p>
+        The dataset contains text messages labeled as <span class="label-tag">fraud</span> or <span class="label-tag">normal</span>.
+        Each message has been cleaned and tokenized into words for analysis.
+    </p>
+
+    <div class='section-title'><h2>Analysis Methodology</h2></div>
+    <p>
+        Using network science techniques, this dashboard builds temporal graphs where nodes are words and
+        edges represent frequent co-occurrence. The graphs are analyzed over time to detect
+        structural shifts, key influencers, and fraud-related word patterns.
+    </p>
+
+    <div class='section-title'><h2>Implementation Details</h2></div>
+    <p>This system is built with:</p>
+    <ul>
+        <li><strong>NetworkX</strong> and <strong>DyNetX</strong> for network modeling</li>
+        <li><strong>Pandas</strong> for data processing</li>
+        <li><strong>Bokeh</strong> for interactive visualizations</li>
     </ul>
 </div>
 """
@@ -1002,8 +1008,49 @@ body {
     background-color: #e9f7fe;
 }
 
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #2c3e50;
+    border-left: 4px solid #3498db;
+    padding-left: 12px;
+}
+
 .card {
     transition: box-shadow 0.3s ease-in-out;
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    max-width: 100%;
+    margin: auto;
+}
+
+.card p {
+    line-height: 1.6;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.card ul, .card ol {
+    padding-left: 20px;
+    margin-bottom: 10px;
+}
+
+.card ul li, .card ol li {
+    margin-bottom: 6px;
+    line-height: 1.5;
+}
+
+.label-tag {
+    background-color: #3498db;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .card:hover {
