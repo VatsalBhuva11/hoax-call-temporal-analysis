@@ -42,7 +42,7 @@ This project aims to build a **privacy-aware system** to analyze how hoax call n
 
 ```
 .
-├── venv/                    # Virtual Environment for this project
+├── venv/                    # Virtual Environment for this project. Will be created after running the venv command above.
 │   ├── bin/      # Virtual environment binaries (auto-generated)
 │   ├── include/             # Virtual environment include files
 │   ├── lib64/             # Symlink to 'lib/' on 64-bit systems
