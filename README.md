@@ -150,8 +150,9 @@ These measures were tracked over time to quantify changes in fraud messaging beh
 
 1. Use `/code/community_detection.ipynb` to analyse communities within the word-network.
 2. Use `code/watts_strogatz_growth_model.ipynb` to simulate network growth and obtain key conclusions.
-3. From the `code/` directory, use command `bokeh serve --show  dashboard.py` to explore temporal graphs , word analytics, and metrics. This opens the main interactive dashboard.
-4. From the `code/` directory, Use command `bokeh serve --show call_types_over_years.py` to see the trend of fraud and normal calls over the years.
+3. Use `code/future-link-prediction-validation.ipynb` to check how the model can evolve in the future.
+4. From the `code/` directory, use command `bokeh serve --show  dashboard.py` to explore temporal graphs , word analytics, and metrics. This opens the main interactive dashboard.
+5. From the `code/` directory, Use command `bokeh serve --show call_types_over_years.py` to see the trend of fraud and normal calls over the years.
 
 ---
 
