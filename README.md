@@ -53,6 +53,7 @@ This project aims to build a **privacy-aware system** to analyze how hoax call n
 ├── .gitignore             # Git configuration to exclude unnecessary files
 ├── pyvenv.cfg             # Virtual environment configuration file
 ├── README.md              # Project overview, setup instructions, and documentation
+├── Group_16_SNA.pptx              # A presentation on our work, covering key topics.
 └── requirements.txt       # List of Python dependencies for installation
 ```
 
