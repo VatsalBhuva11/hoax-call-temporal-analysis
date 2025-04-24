@@ -3,7 +3,7 @@ import networkx as nx
 from bokeh.plotting import figure
 from bokeh.models import (
     ColumnDataSource, HoverTool, Range1d, LabelSet, Div, RadioButtonGroup,
-    DataTable, TableColumn, Select, LinearAxis, Tabs, Button, TabPanel, Slider, TextInput
+    DataTable, TableColumn, Select, LinearAxis, Tabs, Button, TabPanel, Slider, TextInput, TabPanel
 
 )
 from bokeh.layouts import column, row, gridplot
@@ -20,7 +20,7 @@ import os
 import joblib
 from sentence_transformers import SentenceTransformer
 from collections import Counter
-
+from io import BytesIO
 
 
 # Load the data
@@ -1293,27 +1293,65 @@ dashboard_header = column(
     sizing_mode="stretch_width"  # Add this line
 )
 
-# Add a timestamp to show when the dashboard was last updated
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-footer = Div(
-    text=f"""<div style='text-align: center; color: #7f8c8d; font-size: 12px; 
-    margin-top: 20px; border-top: 1px solid #ecf0f1; padding-top: 10px;'>
-    Last updated: {current_time}</div>""",
-    sizing_mode="stretch_width"  # Changed from fixed width
-)
 
 # Make the final layout responsive
 final_layout = column(
     dashboard_header,
     tabs,
-    footer,
     sizing_mode="stretch_both"  # Changed to stretch both width and height
 )
+def image_to_html(path, width="800"):
+    img = Image.open(path)
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode()
+    return f'<img src="data:image/png;base64,{encoded}" width="{width}">'
 
+# === List all your image paths here ===
+image_paths = [
+    "../results/degree-comparison-WS-real.png","../results/graph-comparison-WS-real.png","../results/path-length-graph.png","../results/future-link-prediction.png","../results/predicted-vs-actual.png","../results/prediction_metrics.png" 
+]
+
+# === Optional: Descriptions for each image ===
+image_descriptions = [
+    "Result 1: Degree distribution ",
+    "Result 2: Real message Word Network vs Watts-Strogatz Network",
+    "Result 3: Comparison of Clustering coefficients and average Path Length",
+    "Result 4: Test and Train Set Visualization",
+    "Result 5: Actual vs Predicted Visualization",
+    "Result 6: Comparison of Link Prediction Metrics"
+]
+
+# === Create HTML blocks for each image and its description ===
+image_divs = []
+for i, img_path in enumerate(image_paths):
+    desc = image_descriptions[i] if i < len(image_descriptions) else f"Result {i+1}"
+    desc_div = Div(text=f"<h3>{desc}</h3>", sizing_mode="stretch_width")
+    img_div = Div(text=image_to_html(img_path), sizing_mode="stretch_width")
+    image_divs.extend([desc_div, img_div])
+
+# === Intro text ===
+validation_intro = """
+<h2 style="color:#2c3e50;">Validation Results</h2>
+<p style="font-size:17px">This section highlights the key outputs and metrics derived from various experiments conducted 
+during the model validation process. Each image shown here is a direct representation of the significant results obtained,
+ which serve as a benchmark for evaluating model performance. These outputs are crucial for understanding how well the 
+ model is performing, identifying areas of improvement, and validating its effectiveness against expected outcomes.
+</p>
+"""
+
+# === Final layout and tab ===
+validation_layout = column(
+    Div(text=validation_intro, sizing_mode="stretch_width"),
+    *image_divs,
+    sizing_mode="stretch_both"
+)
+
+validation_tab = TabPanel(child=column(validation_layout), title="Validation")
 # Add the layout to the current Bokeh document
 curdoc().add_root(final_layout)
 curdoc().title = "Temporal Word Network Analysis Dashboard"
-
+tabs.tabs.append(validation_tab)
 # Add custom CSS to document
 curdoc().template_variables["css_code"] = """
 body {
