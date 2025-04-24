@@ -50,6 +50,7 @@ This project aims to build a **privacy-aware system** to analyze how hoax call n
 ├── code/              # Core Python scripts for modeling, analysis, and visualization
 ├── data/              # Processed datasets used in analysis (e.g., cleaned CSVs)
 ├── results/           # Generated outputs like plots, metrics, and screenshots
+│   └── classification_report/  # Results from message classification
 ├── .gitignore             # Git configuration to exclude unnecessary files
 ├── pyvenv.cfg             # Virtual environment configuration file
 ├── README.md              # Project overview, setup instructions, and documentation
@@ -65,6 +66,7 @@ This project aims to build a **privacy-aware system** to analyze how hoax call n
 -   NetworkX, DyNetX, graph-tool, igraph
 -   ruptures, changepy, STUMPY, scikit-multiflow, pyts
 -   matplotlib, plotly, bokeh
+-   scikit-learn, sentence-transformers, gensim, UMAP
 
     Use `requirements.txt` to install.
 
@@ -133,6 +135,30 @@ To understand the structural nature of fraud word networks, we simulated a **Wat
 -   Determine whether fraud messages exhibit small-world properties,
 -   Highlight differences in message complexity and connectivity.
 
+### Message Classification using Machine Learning
+
+Using SentenceBERT embeddings and logistic regression, we built a classifier to automatically differentiate between fraudulent and normal messages:
+
+-   **Sentence embeddings**: Messages are converted to vector representations using the all-MiniLM-L6-v2 model
+-   **Balanced logistic regression**: Addresses class imbalance in the dataset
+-   **Performance metrics**: Classification report with precision, recall, and F1-score
+-   **Visualization**: Confusion matrix to understand model errors
+-   **Feature analysis**: Word importance scores to identify key fraud indicators
+
+This classification system enables automated filtering and analysis of incoming messages based on their similarity to known fraud patterns.
+
+### Embedding Analysis for Pattern Recognition
+
+We implemented advanced embedding techniques to understand the semantic patterns within messages:
+
+-   **SentenceBERT embeddings**: To capture the overall meaning of messages
+-   **Word2Vec embeddings**: To analyze word-level relationships and context
+-   **Dimensionality reduction**: Using UMAP to visualize high-dimensional embeddings in 2D space
+-   **Clustering**: K-means clustering to identify message groups with similar semantic content
+-   **Word usage analysis**: Visualization of words by their dominant usage (fraud vs. normal)
+
+These embedding techniques help reveal subtle linguistic patterns that distinguish fraudulent from normal messages and show how fraud techniques evolve over time.
+
 ### Centrality Measures and Statistical Metrics
 
 Key network statistics were computed to evaluate the role and influence of individual words. Metrics included:
@@ -151,8 +177,10 @@ These measures were tracked over time to quantify changes in fraud messaging beh
 1. Use `/code/community_detection.ipynb` to analyse communities within the word-network.
 2. Use `code/watts_strogatz_growth_model.ipynb` to simulate network growth and obtain key conclusions.
 3. Use `code/future-link-prediction-validation.ipynb` to check how the model can evolve in the future.
-4. From the `code/` directory, use command `bokeh serve --show  dashboard.py` to explore temporal graphs , word analytics, and metrics. This opens the main interactive dashboard.
-5. From the `code/` directory, Use command `bokeh serve --show call_types_over_years.py` to see the trend of fraud and normal calls over the years.
+4. Run `python code/classifier.py` to train and evaluate the fraud message classifier.
+5. Run `python code/embeddings.py` to generate word and sentence embeddings visualizations.
+6. From the `code/` directory, use command `bokeh serve --show dashboard.py` to explore temporal graphs, word analytics, and metrics. This opens the main interactive dashboard.
+7. From the `code/` directory, Use command `bokeh serve --show call_types_over_years.py` to see the trend of fraud and normal calls over the years.
 
 ---
 
@@ -163,10 +191,13 @@ These measures were tracked over time to quantify changes in fraud messaging beh
 -   Community merging/splitting visualizations
 -   Link prediction precision-recall plots
 -   Bokeh dashboard outputs and walkthrough
--   Word network plotted using Networkx, DyNetx, Plotly, and Matplotlib.
--   Computation of centrality measures such as degree centrality.
--   Recurrence plot comparing edge counts over snapshots of years.
--   Real Graph and WS Model Network comparisons.
+-   Word network plotted using Networkx, DyNetx, Plotly, and Matplotlib
+-   Computation of centrality measures such as degree centrality
+-   Recurrence plot comparing edge counts over snapshots of years
+-   Real Graph and WS Model Network comparisons
+-   Classification confusion matrix and performance metrics (`results/classification_report/`)
+-   Word embedding clusters showing fraud vs. normal message patterns (`results/word2vec_by_label.png`)
+-   Sentence embedding visualizations showing cluster separation (`results/sentence_clusters.png`)
 
 ---
 
