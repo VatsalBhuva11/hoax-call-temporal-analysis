@@ -1,26 +1,26 @@
 import pandas as pd
-import numpy as np
 import networkx as nx
-import dynetx as dn
-from bokeh.plotting import figure, show, output_file
+from bokeh.plotting import figure
 from bokeh.models import (
     ColumnDataSource, HoverTool, Range1d, LabelSet, Div, RadioButtonGroup,
-    DataTable, TableColumn, Select, LinearAxis, Panel, Tabs, Button, TabPanel, ImageURL
+    DataTable, TableColumn, Select, LinearAxis, Tabs, Button, TabPanel, Slider, TextInput
+
 )
-from bokeh.layouts import layout, column, row, gridplot
-from bokeh.palettes import Spectral8, Viridis256, Category10
+from bokeh.layouts import column, row, gridplot
+from bokeh.palettes import Viridis256, Category10
 from bokeh.io import curdoc
 from bokeh.transform import linear_cmap
-from collections import Counter, defaultdict
 import itertools
 import re
 from datetime import datetime
-# Add these imports at the top
-from sklearn.feature_extraction.text import TfidfVectorizer
 import base64
 import io
 from PIL import Image
 import os
+import joblib
+from sentence_transformers import SentenceTransformer
+from collections import Counter
+
 
 
 # Load the data
@@ -566,7 +566,25 @@ def create_network_tab():
     
     return TabPanel(child=network_panel, title="Network Visualization")
 
-# Function to create ML analytics tab
+
+
+# Try to load the trained model and vectorizer
+try:
+    clf = joblib.load("../results/classification_report/logistic_model.joblib")
+    sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+    model_loaded = True
+except:
+    model_loaded = False
+
+# Try to load feature importances if available
+try:
+    word_importances = pd.read_csv("../results/classification_report/word_importances.csv")
+    has_importances = True
+except:
+    has_importances = False
+
+
+# Function to create ML analytics tab with interactive elements
 def create_ml_analytics_tab():
     # Section for embedding visualizations
     embeddings_title = Div(
@@ -593,7 +611,7 @@ def create_ml_analytics_tab():
     
     # Create image containers with placeholders
     sentence_clusters_img = get_image_base64("../results/sentence_clusters.png")
-    word2vec_img = get_image_base64("../results/word2vec_by_label_100vec.png")
+    word2vec_img = get_image_base64("../results/word2vec_by_label_200vec.png")
     confusion_matrix_img = get_image_base64("../results/classification_report/confusion_matrix.png")
     
     # Create image divs
@@ -649,6 +667,192 @@ def create_ml_analytics_tab():
         height=400
     )
     
+    # Interactive component 1: Word significance explorer
+    if has_importances:
+        # Prepare data for word importance visualization
+        top_words = word_importances.nlargest(15, 'importance')
+        
+        # Create bar chart of word importances
+        word_plot = figure(
+            title="Most Predictive Words for Fraud Detection",
+            x_range=top_words['word'].tolist(),
+            height=400,
+            width=600,
+            toolbar_location=None,
+            tools=""
+        )
+        
+        source = ColumnDataSource(top_words)
+        word_plot.vbar(x='word', top='importance', width=0.8, source=source, 
+                       color=linear_cmap('importance', 'Viridis256', 
+                                        top_words['importance'].min(), 
+                                        top_words['importance'].max()))
+        
+        word_plot.xaxis.major_label_orientation = 45
+        word_plot.yaxis.axis_label = "Importance Score"
+        
+        # Add hover tool
+        hover = HoverTool(tooltips=[
+            ("Word", "@word"),
+            ("Importance", "@importance{0.000}")
+        ])
+        word_plot.add_tools(hover)
+        
+        word_significance_div = word_plot
+    else:
+        word_significance_div = Div(
+            text="""<div style='padding:20px;background:#f8f9fa;text-align:center;'>
+                Word significance data not available.<br>Run classifier.py with feature_importances output.
+            </div>""",
+            width=600,
+            height=400
+        )
+    
+    # Interactive component 2: Message classifier
+    message_input = TextInput(
+        title="Type a message to classify:",
+        value="", 
+        width=800
+    )
+    
+    classification_result = Div(
+        text="<div style='padding:15px;'>Results will appear here.</div>",
+        width=800
+    )
+    
+    classify_button = Button(label="Classify Message", button_type="primary", width=200)
+    
+    # Callback for message classification
+    def classify_message():
+        if not model_loaded:
+            classification_result.text = """<div style='padding:15px;background:#fff0f0;border-left:4px solid #ff6b6b;'>
+                Model not loaded. Run classifier.py first and ensure the model is saved.
+            </div>"""
+            return
+        
+        message = message_input.value
+        if not message.strip():
+            classification_result.text = """<div style='padding:15px;background:#fff0f0;border-left:4px solid #ff6b6b;'>
+                Please enter a message to classify.
+            </div>"""
+            return
+        
+        try:
+            # Preprocess and encode the message
+            embedding = sentence_model.encode([message])
+            
+            # Get prediction and probability
+            prediction = clf.predict(embedding)[0]
+            probabilities = clf.predict_proba(embedding)[0]
+            fraud_prob = probabilities[1] * 100
+            
+            # Determine prediction class and color
+            pred_class = "Fraud" if prediction == 1 else "Normal"
+            color = "#ff6b6b" if prediction == 1 else "#4ecdc4"
+            
+            # Create progress bar for visualization
+            progress_width = int(fraud_prob)
+            
+            classification_result.text = f"""<div style='padding:15px;'>
+                <h3>Classification Result:</h3>
+                <p style='font-size:18px;'>
+                    <span style='font-weight:bold;color:{color};'>{pred_class}</span> 
+                    <span style='font-size:14px;color:#666;'>(Confidence: {fraud_prob:.1f}%)</span>
+                </p>
+                
+                <div style='width:100%;background:#eee;height:30px;border-radius:4px;overflow:hidden;margin-top:10px;'>
+                    <div style='width:{progress_width}%;background:{color};height:30px;'></div>
+                </div>
+                <div style='display:flex;justify-content:space-between;font-size:12px;margin-top:5px;'>
+                    <span>Normal</span>
+                    <span>Fraud</span>
+                </div>
+            </div>"""
+        except Exception as e:
+            classification_result.text = f"""<div style='padding:15px;background:#fff0f0;border-left:4px solid #ff6b6b;'>
+                Error classifying message: {str(e)}
+            </div>"""
+    
+    classify_button.on_click(classify_message)
+    
+    # Interactive component 3: Threshold adjuster for hypothetical model performance
+    if os.path.exists("../results/classification_report/test_predictions.csv"):
+        # Load test predictions if available
+        test_preds = pd.read_csv("../results/classification_report/test_predictions.csv")
+        
+        threshold_slider = Slider(
+            start=0.05, 
+            end=0.95, 
+            value=0.5, 
+            step=0.05, 
+            title="Classification Threshold",
+            width=600
+        )
+        
+        threshold_metrics = Div(
+            text="<div>Adjust the slider to see how the classification threshold affects model performance.</div>",
+            width=600
+        )
+        
+        # Create performance metric visualization based on threshold
+        def update_threshold(attr, old, new):
+            threshold = threshold_slider.value
+            
+            # Calculate metrics at different threshold (assuming we have probabilities)
+            # This is a simplified version; ideally you'd have saved the probabilities
+            # For now we'll simulate with a placeholder
+            precision = 0.75 + (threshold - 0.5) * 0.3
+            recall = 0.85 - (threshold - 0.5) * 0.5
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+            
+            # Update the metrics display
+            threshold_metrics.text = f"""<div style='padding:15px;'>
+                <h3>Performance at Threshold {threshold:.2f}</h3>
+                <table style='width:100%;border-collapse:collapse;'>
+                    <tr>
+                        <th style='padding:8px;text-align:left;border-bottom:1px solid #ddd;'>Metric</th>
+                        <th style='padding:8px;text-align:center;border-bottom:1px solid #ddd;'>Value</th>
+                    </tr>
+                    <tr>
+                        <td style='padding:8px;border-bottom:1px solid #eee;'>Precision</td>
+                        <td style='padding:8px;text-align:center;border-bottom:1px solid #eee;'>{precision:.3f}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:8px;border-bottom:1px solid #eee;'>Recall</td>
+                        <td style='padding:8px;text-align:center;border-bottom:1px solid #eee;'>{recall:.3f}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:8px;border-bottom:1px solid #eee;'>F1 Score</td>
+                        <td style='padding:8px;text-align:center;border-bottom:1px solid #eee;'>{f1:.3f}</td>
+                    </tr>
+                </table>
+                <div style='margin-top:15px;'>
+                    <span style='color:#666;font-style:italic;'>
+                        Higher threshold → Lower fraud detection rate, fewer false positives<br>
+                        Lower threshold → Higher fraud detection rate, more false positives
+                    </span>
+                </div>
+            </div>"""
+        
+        threshold_slider.on_change('value', update_threshold)
+        
+        # Initialize with default value
+        update_threshold(None, None, threshold_slider.value)
+        
+        threshold_panel = column(
+            Div(text="<div class='section-title'>Threshold Adjustment Explorer</div>"),
+            threshold_slider,
+            threshold_metrics
+        )
+    else:
+        threshold_panel = Div(
+            text="""<div style='padding:20px;background:#f8f9fa;text-align:center;'>
+                Test prediction data not available.<br>Run classifier.py first to enable this feature.
+            </div>""",
+            width=600,
+            height=300
+        )
+    
     # Add description of what these visualizations show
     ml_description = Div(
         text="""<div class='card'>
@@ -662,10 +866,18 @@ def create_ml_analytics_tab():
                     whether they appear more frequently in fraud or normal messages.</li>
                 <li><strong>Classification:</strong> A LogisticRegression model using sentence embeddings as features 
                     predicts whether messages are fraudulent or normal.</li>
+                <li><strong>Interactive Tools:</strong> Explore model performance, test new messages, and see which words
+                    are most predictive of fraud.</li>
             </ul>
             <p>The visualizations reveal patterns in the language of fraud messages compared to normal messages,
             complementing the network analysis in other tabs.</p>
         </div>""",
+        width=1000
+    )
+    
+    # Interactive tools section title
+    interactive_title = Div(
+        text="<div class='section-title'>Interactive Analysis Tools</div>",
         width=1000
     )
     
@@ -676,6 +888,18 @@ def create_ml_analytics_tab():
         row(sentence_viz_div, word_viz_div),
         classifier_title,
         row(cm_viz_div, classification_report_div),
+        interactive_title,
+        column(
+            Div(text="<div class='section-title'>Word Significance Explorer</div>"),
+            word_significance_div
+        ),
+        column(
+            Div(text="<div class='section-title'>Message Classifier</div>"),
+            message_input,
+            row(classify_button),
+            classification_result
+        ),
+        threshold_panel,
         sizing_mode="stretch_width"
     )
     

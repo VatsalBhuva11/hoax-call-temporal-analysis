@@ -6,6 +6,8 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import joblib
+
 
 # Step 1: Load data
 df = pd.read_csv("../data/6_sorted_quoted.csv")
@@ -44,17 +46,17 @@ cm = confusion_matrix(y_test, y_pred)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['normal', 'fraud'])
 
 # Create output directory
-os.makedirs("../result", exist_ok=True)
+os.makedirs("../results/classification_report", exist_ok=True)
 
 # Save confusion matrix
 plt.figure(figsize=(6, 5))
 disp.plot(cmap="Blues", values_format="d")
 plt.title("Confusion Matrix (Logistic Regression)")
-plt.savefig("../result/confusion_matrix.png", bbox_inches='tight')
+plt.savefig("../results/classification_report/confusion_matrix.png", bbox_inches='tight')
 plt.close()
 
 # Step 6: Save classification report as text
-with open("../result/classification_report.txt", "w") as f:
+with open("../results/classification_report/classification_report.txt", "w") as f:
     f.write(report)
 
 # Optional: Save prediction vs actual as CSV
@@ -62,6 +64,50 @@ df_test = pd.DataFrame({
     'actual': y_test,
     'predicted': y_pred
 })
-df_test.to_csv("../result/test_predictions.csv", index=False)
+df_test.to_csv("../results/classification_report/test_predictions.csv", index=False)
 
-print("✅ Model trained and results saved to ../result")
+# If possible, extract feature importances from the model
+# For logistic regression, we can use the coefficients as a proxy for feature importance
+if hasattr(clf, 'coef_'):
+    # Get feature importances and map to words
+    importances = np.abs(clf.coef_[0])
+    
+    # Create a mapping from embedding dimensions to importance
+    feature_importance = pd.DataFrame({
+        'feature': range(len(importances)),
+        'importance': importances
+    })
+    
+    # Optional: If you have the vocabulary from your embedding model
+    # Map the embeddings back to words - this is a simplified approach
+    # You'd need to adapt this based on your specific embedding approach
+    try:
+        # Get a sample of the most used words in the dataset
+        from collections import Counter
+        all_words = [word for words in df['tokens'] for word in words]
+        word_counts = Counter(all_words)
+        top_words = [word for word, _ in word_counts.most_common(100)]
+        
+        # Get embeddings for these words
+        word_embeddings = {word: model.encode(word) for word in top_words}
+        
+        # Calculate correlation between each word embedding and model coefficients
+        word_importance = []
+        for word, embedding in word_embeddings.items():
+            # Calculate a simplified importance score based on dot product
+            importance = np.abs(np.dot(embedding, clf.coef_[0]))
+            word_importance.append({'word': word, 'importance': importance})
+        
+        # Create DataFrame and save
+        word_imp_df = pd.DataFrame(word_importance)
+        word_imp_df.sort_values('importance', ascending=False, inplace=True)
+        word_imp_df.to_csv("../results/classification_report/word_importances.csv", index=False)
+    except Exception as e:
+        print(f"Could not map feature importances to words: {e}")
+
+
+
+
+print("✅ Model trained and results saved to ../results/classification_report")
+
+joblib.dump(clf, "../results/classification_report/logistic_model.joblib")
