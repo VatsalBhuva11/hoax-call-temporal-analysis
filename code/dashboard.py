@@ -5,7 +5,7 @@ import dynetx as dn
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import (
     ColumnDataSource, HoverTool, Range1d, LabelSet, Div, RadioButtonGroup,
-    DataTable, TableColumn, Select, LinearAxis, Panel, Tabs, Button, TabPanel
+    DataTable, TableColumn, Select, LinearAxis, Panel, Tabs, Button, TabPanel, ImageURL
 )
 from bokeh.layouts import layout, column, row, gridplot
 from bokeh.palettes import Spectral8, Viridis256, Category10
@@ -17,6 +17,11 @@ import re
 from datetime import datetime
 # Add these imports at the top
 from sklearn.feature_extraction.text import TfidfVectorizer
+import base64
+import io
+from PIL import Image
+import os
+
 
 # Load the data
 df = pd.read_csv('../data/6_sorted_quoted_1000.csv')
@@ -561,6 +566,121 @@ def create_network_tab():
     
     return TabPanel(child=network_panel, title="Network Visualization")
 
+# Function to create ML analytics tab
+def create_ml_analytics_tab():
+    # Section for embedding visualizations
+    embeddings_title = Div(
+        text="<div class='section-title'>Embedding Visualizations</div>",
+        width=1000
+    )
+    
+    # Section for classifier visualizations
+    classifier_title = Div(
+        text="<div class='section-title'>Classification Results</div>",
+        width=1000
+    )
+    
+    # Helper function to encode image files to base64 for Bokeh
+    def get_image_base64(filepath, default_text="Image not found"):
+        if os.path.exists(filepath):
+            img = Image.open(filepath)
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            img_str = base64.b64encode(buffer.getvalue()).decode()
+            return f"data:image/png;base64,{img_str}"
+        else:
+            return None
+    
+    # Create image containers with placeholders
+    sentence_clusters_img = get_image_base64("../results/sentence_clusters.png")
+    word2vec_img = get_image_base64("../results/word2vec_by_label_100vec.png")
+    confusion_matrix_img = get_image_base64("../results/classification_report/confusion_matrix.png")
+    
+    # Create image divs
+    sentence_viz_div = Div(
+        text=f"""<div class='card'>
+            <h3>Sentence Embeddings (UMAP)</h3>
+            <p>2D projection of sentence embeddings colored by label (fraud vs normal).</p>
+            {"<img src='" + sentence_clusters_img + "' style='width:100%;max-width:600px;'>" if sentence_clusters_img else 
+             "<div style='padding:20px;background:#f8f9fa;text-align:center;'>Sentence embedding visualization not found.<br>Run embeddings.py first.</div>"}
+        </div>""",
+        width=600,
+        height=500
+    )
+    
+    word_viz_div = Div(
+        text=f"""<div class='card'>
+            <h3>Word Embeddings by Usage</h3>
+            <p>Words colored by their dominant usage in fraud (red) or normal (blue) messages.</p>
+            {"<img src='" + word2vec_img + "' style='width:100%;max-width:600px;'>" if word2vec_img else
+             "<div style='padding:20px;background:#f8f9fa;text-align:center;'>Word embedding visualization not found.<br>Run embeddings.py first.</div>"}
+        </div>""",
+        width=600,
+        height=500
+    )
+    
+    cm_viz_div = Div(
+        text=f"""<div class='card'>
+            <h3>Confusion Matrix</h3>
+            <p>Confusion matrix for the fraud detection classifier.</p>
+            {"<img src='" + confusion_matrix_img + "' style='width:100%;max-width:400px;'>" if confusion_matrix_img else
+             "<div style='padding:20px;background:#f8f9fa;text-align:center;'>Confusion matrix not found.<br>Run classifier.py first.</div>"}
+        </div>""",
+        width=400,
+        height=400
+    )
+    
+    # Load and display classification report if available
+    report_text = "Classification report not found. Run classifier.py first."
+    try:
+        if os.path.exists("../results/classification_report/classification_report.txt"):
+            with open("../results/classification_report/classification_report.txt", "r") as f:
+                report_text = f.read()
+    except:
+        pass
+    
+    classification_report_div = Div(
+        text=f"""<div class='card'>
+            <h3>Classification Report</h3>
+            <p>Performance metrics for the fraud detection classifier.</p>
+            <pre style='background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;'>{report_text}</pre>
+        </div>""",
+        width=500,
+        height=400
+    )
+    
+    # Add description of what these visualizations show
+    ml_description = Div(
+        text="""<div class='card'>
+            <h3>About Machine Learning Analysis</h3>
+            <p>This tab presents the results of applying Natural Language Processing and Machine Learning 
+            techniques to the hoax-call dataset:</p>
+            <ul>
+                <li><strong>Sentence Embeddings:</strong> Each message is converted to a numerical vector using 
+                    the all-MiniLM-L6-v2 model, then projected to 2D using UMAP. Similar messages appear closer together.</li>
+                <li><strong>Word Embeddings:</strong> Individual words are embedded using Word2Vec and colored based on 
+                    whether they appear more frequently in fraud or normal messages.</li>
+                <li><strong>Classification:</strong> A LogisticRegression model using sentence embeddings as features 
+                    predicts whether messages are fraudulent or normal.</li>
+            </ul>
+            <p>The visualizations reveal patterns in the language of fraud messages compared to normal messages,
+            complementing the network analysis in other tabs.</p>
+        </div>""",
+        width=1000
+    )
+    
+    # Create layout for ML analytics tab
+    ml_panel = column(
+        ml_description,
+        embeddings_title,
+        row(sentence_viz_div, word_viz_div),
+        classifier_title,
+        row(cm_viz_div, classification_report_div),
+        sizing_mode="stretch_width"
+    )
+    
+    return TabPanel(child=ml_panel, title="ML Analytics")
+
 def create_metrics_tab():
     # Create metrics visualizations
     metrics_time_plot = create_metrics_timeseries()
@@ -890,6 +1010,7 @@ def create_about_tab():
 network_tab = create_network_tab()
 metrics_tab = create_metrics_tab()
 word_analysis_tab = create_word_analysis_tab()
+ml_analytics_tab = create_ml_analytics_tab()
 
 
 # About tab content
@@ -937,7 +1058,7 @@ about_text = """
 about_content = Div(text=about_text, width=1000)
 about_tab = TabPanel(child=about_content, title="About")
 # Create tabs layout with all panels
-tabs = Tabs(tabs=[network_tab, metrics_tab, word_analysis_tab, about_tab], 
+tabs = Tabs(tabs=[about_tab, network_tab, metrics_tab, ml_analytics_tab, word_analysis_tab], 
            sizing_mode="stretch_width")
 
 # Create dashboard header
