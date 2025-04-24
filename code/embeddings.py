@@ -44,7 +44,7 @@ print(f"Silhouette Score (KMeans): {sil_score:.3f}")
 # Step 5: Word Embeddings using Word2Vec
 word2vec_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=3, workers=4)
 word_vectors = word2vec_model.wv
-top_words = [word for word in word_vectors.index_to_key[:700]]
+top_words = [word for word in word_vectors.index_to_key[:600]]
 word_vecs = [word_vectors[word] for word in top_words]
 
 # NEW: Count how often each word appears in fraud vs normal
