@@ -22,7 +22,6 @@ from sentence_transformers import SentenceTransformer
 from collections import Counter
 from io import BytesIO
 
-# streamlit run dashboard.py 
 
 # Load the data
 df = pd.read_csv('../data/6_sorted_quoted_1000.csv')

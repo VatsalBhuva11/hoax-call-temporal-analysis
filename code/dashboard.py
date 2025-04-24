@@ -766,14 +766,28 @@ with tab5:
     # Visualization of ML results
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<h3>Model Performance Visualization</h3>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
     
-    # Check if confusion matrix image exists
-    confusion_matrix_path = "../results/classification_report/confusion_matrix.png"
-    if os.path.exists(confusion_matrix_path):
-        cm_img = Image.open(confusion_matrix_path)
-        st.image(cm_img, caption="Confusion Matrix", use_container_width=True)
-    else:
-        st.info("Confusion matrix visualization not available. Run classifier.py first.")
+    with col1:
+        # Check if confusion matrix image exists
+        confusion_matrix_path = "../results/classification_report/confusion_matrix.png"
+        if os.path.exists(confusion_matrix_path):
+            cm_img = Image.open(confusion_matrix_path)
+            st.image(cm_img, caption="Confusion Matrix", use_container_width=True)
+        else:   
+            st.info("Confusion matrix visualization not available. Run classifier.py first.")
+        
+    with col2:
+        # Check if confusion matrix image exists
+        classification_report_path = "../results/classification_report/classification_report.png"
+        if os.path.exists(classification_report_path):
+            report_img = Image.open(classification_report_path)
+            st.image(report_img, caption="Classification Report", use_container_width=True)
+        else:   
+            st.info("Classification report not available. Run classifier.py first.")
+    
+    
     
     # Check if word importance data exists
     try:
